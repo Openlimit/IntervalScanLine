@@ -147,8 +147,8 @@ void load_obj(const string &name, vector<Edge> &ET, vector<Poly> &PL, int height
 }
 
 int main() {
-    string input_model = "E:\\C_C++_Code\\IntervalScanLine\\homer_large.obj";
-    string out_image = "E:\\C_C++_Code\\IntervalScanLine\\image.pgm";
+    string input_model = "../homer_large.obj";
+    string out_image = "../image.pgm";
 
     int height = 500;
     int width = 500;
