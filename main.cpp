@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <queue>
 #include <algorithm>
 #include <fstream>
 
@@ -9,6 +10,10 @@ using namespace std;
 struct Edge {
     float x, dx;
     int ymax, ymin, poly_id;
+
+    bool operator<(const Edge &a) const {
+        return x > a.x;
+    }
 };
 
 struct Poly {
@@ -81,10 +86,6 @@ float getZ(Poly &poly, float x, int y) {
     return z;
 }
 
-bool cmp(const Edge &a, const Edge &b) {
-    return a.x < b.x;
-}
-
 void drawLine(ofstream &fs, float x1, float x2, int y, Poly &poly, bool newLine) {
     int x11 = (int) x1;
     int x22 = (int) x2;
@@ -136,7 +137,7 @@ void load_obj(const string &name, vector<Edge> &ET, vector<Poly> &PL, int height
     for (int i = 0; i < points.size(); ++i) {
         points[i].x = (points[i].x - xmean) * time + height / 2.0;
         points[i].y = (points[i].y - ymean) * time + height / 2.0;
-        points[i].z = (points[i].z - zmean) * time*2 + height / 2.0;
+        points[i].z = (points[i].z - zmean) * time * 2 + height / 2.0;
     }
 
     for (int i = 0; i < faces.size(); ++i) {
@@ -146,13 +147,16 @@ void load_obj(const string &name, vector<Edge> &ET, vector<Poly> &PL, int height
 }
 
 int main() {
+    string input_model = "E:\\C_C++_Code\\IntervalScanLine\\homer_large.obj";
+    string out_image = "E:\\C_C++_Code\\IntervalScanLine\\image.pgm";
+
     int height = 500;
     int width = 500;
     int ymin = 0;
     int ymax = height - 1;
     vector<Edge> ET;
     vector<Poly> PL;
-    load_obj("C:\\Users\\wly\\Desktop\\homer_large.obj", ET, PL, height);
+    load_obj(input_model, ET, PL, height);
 
     Poly bg;
     bg.a = bg.b = 0;
@@ -178,10 +182,10 @@ int main() {
     bg_e2.ymin = ymin;
     ET.emplace_back(bg_e2);
 
-    vector<Edge> AET;
+    priority_queue<Edge> AET;
     set<int> IPL;
 
-    ofstream fs("C:\\Users\\wly\\Desktop\\image.pgm");
+    ofstream fs(out_image);
     fs << "P2" << endl;
     fs << width << " " << height << endl;
     fs << height << endl;
@@ -190,41 +194,45 @@ int main() {
         for (int i = 0; i < ET.size(); ++i) {
             if (ET[i].ymax >= ET[i].ymin && y == ET[i].ymax) {
                 if (ET[i].ymax > ET[i].ymin)
-                    AET.emplace_back(ET[i]);
+                    AET.emplace(ET[i]);
                 ET[i].ymax--;
                 ET[i].x -= ET[i].dx;
             }
         }
         if (AET.empty())
             continue;
-        sort(AET.begin(), AET.end(), cmp);
-        for (int i = 0; i < AET.size() - 1; ++i) {
-            int id1 = AET[i].poly_id;
-            PL[id1].flag = !PL[id1].flag;
-            if (PL[id1].flag) {
-                IPL.insert(id1);
+
+        while (AET.size() > 1) {
+            Edge cur = AET.top();
+            AET.pop();
+            Edge next = AET.top();
+
+            int cur_id = cur.poly_id;
+            PL[cur_id].flag = !PL[cur_id].flag;
+            if (PL[cur_id].flag) {
+                IPL.insert(cur_id);
             } else {
-                IPL.erase(id1);
+                IPL.erase(cur_id);
             }
 
-            float x = (AET[i].x + AET[i + 1].x) / 2;
+            float x = (cur.x + next.x) / 2;
             float zmax = -1e9;
-            int cur_id = -1;
+            int show_id = -1;
             for (auto it = IPL.begin(); it != IPL.end(); it++) {
                 int id = *it;
                 float z = getZ(PL[id], x, y);
                 if (z > zmax) {
                     zmax = z;
-                    cur_id = id;
+                    show_id = id;
                 }
             }
-            drawLine(fs, AET[i].x, AET[i + 1].x, y, PL[cur_id], i + 2 == AET.size());
+            drawLine(fs, cur.x, next.x, y, PL[show_id], AET.size() == 1);
         }
 
         for (auto it = IPL.begin(); it != IPL.end(); it++) {
             PL[*it].flag = false;
         }
-        AET.clear();
+        AET.pop();
         IPL.clear();
     }
 
